@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Beacon — Help, made obvious</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+:root{
+  --bg:#0a1310; --bg2:#0c1714; --side:#0a1411; --panel:#0f1c18; --panel-2:#0d1a16;
+  --brd:rgba(125,210,190,0.10); --brd-2:rgba(125,210,190,0.20);
+  --txt:#e9f1ed; --muted:#92a79f; --faint:#5f736c;
+  --teal:#5eead4; --teal-2:#34d399; --teal-deep:#2dd4bf;
+  --warm:#fcd34d; --coral:#fb7185; --indigo:#9aa6f8;
+  --r:16px; --shadow:0 14px 40px rgba(0,0,0,.34);
+}
+*{box-sizing:border-box}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+html,body{margin:0;min-height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased;line-height:1.5}
+.bg-fx{position:fixed;inset:0;z-index:0;pointer-events:none}
+.bg-fx::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(40% 35% at 78% 4%, rgba(94,234,212,.08), transparent 60%),
+   radial-gradient(45% 40% at 12% 96%, rgba(94,234,212,.05), transparent 60%),
+   linear-gradient(180deg,var(--bg),var(--bg2));}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:20px}
+.panel{background:var(--panel);border:1px solid var(--brd);border-radius:var(--r);box-shadow:var(--shadow)}
+
+/* SHELL */
+.app{position:relative;z-index:1;display:flex;min-height:100vh}
+.sidebar{width:258px;flex:0 0 258px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;
+  padding:22px 16px 18px;border-right:1px solid var(--brd);background:var(--side)}
+.side-logo{display:flex;align-items:center;gap:12px;padding:6px 8px 22px}
+.beam{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;position:relative;flex:0 0 auto;
+  background:linear-gradient(160deg,rgba(94,234,212,.22),rgba(94,234,212,.08));border:1px solid rgba(94,234,212,.3);color:var(--teal)}
+.beam svg{width:23px;height:23px}
+.beam::after{content:"";position:absolute;inset:-5px;border-radius:18px;border:1px solid rgba(94,234,212,.25);animation:beam 2.8s ease-out infinite}
+@keyframes beam{0%{transform:scale(.7);opacity:.7}100%{transform:scale(1.25);opacity:0}}
+.side-logo .name{font-family:'Fraunces',serif;font-size:24px;font-weight:600;color:var(--teal)}
+.side-logo .tl{font-size:12px;color:var(--muted);margin-top:-3px}
+.side-nav{display:flex;flex-direction:column;gap:3px}
+.nav-item{display:flex;align-items:center;gap:13px;padding:11px 14px;border-radius:12px;color:var(--muted);
+  font-size:14.5px;font-weight:500;cursor:pointer;transition:.15s;text-decoration:none;border:1px solid transparent}
+.nav-item svg{width:19px;height:19px;flex:0 0 auto;opacity:.85}
+.nav-item:hover{background:rgba(255,255,255,.04);color:var(--txt)}
+.nav-item.active{background:linear-gradient(180deg,rgba(94,234,212,.15),rgba(94,234,212,.06));color:var(--txt);border-color:rgba(94,234,212,.28)}
+.nav-item.active svg{color:var(--teal);opacity:1}
+.nav-badge{margin-left:auto;font-size:11px;font-weight:700;min-width:20px;height:20px;padding:0 6px;border-radius:999px;
+  background:rgba(94,234,212,.18);color:var(--teal);display:none;align-items:center;justify-content:center}
+.nav-badge:not(:empty){display:inline-flex}
+.nav-sep{height:1px;background:var(--brd);margin:12px 8px}
+.side-spacer{flex:1}
+.side-help{margin-top:14px;padding:14px;border-radius:14px;border:1px solid rgba(94,234,212,.2);background:rgba(94,234,212,.06);
+  display:flex;gap:12px;align-items:flex-start;text-decoration:none;transition:.15s}
+.side-help:hover{background:rgba(94,234,212,.1)}
+.side-help .q{width:36px;height:36px;border-radius:11px;background:rgba(94,234,212,.14);color:var(--teal);display:grid;place-items:center;flex:0 0 auto}
+.side-help .q svg{width:19px;height:19px}
+.side-help .t1{font-size:12.5px;font-weight:600;color:var(--txt)}
+.side-help .t2{font-size:13px;color:var(--teal);margin-top:1px;font-weight:600}
+.side-help .t3{font-size:11px;color:var(--muted);margin-top:1px}
+
+/* MAIN */
+.main{flex:1;min-width:0;padding:22px 30px 60px;max-width:1240px}
+.main-top{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.main-top .spacer{flex:1}
+.btn.menu-btn{display:none}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:999px;font-size:12.5px;border:1px solid var(--brd);background:var(--panel);color:var(--muted)}
+.chip svg{width:14px;height:14px}
+.chip .d{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.chip.ai-on .d{background:var(--teal-2);box-shadow:0 0 8px var(--teal-2);animation:pulse 2.4s infinite}
+.chip.ai-off .d{background:var(--warm)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.5)}70%{box-shadow:0 0 0 8px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+
+.view[hidden]{display:none}
+.page-head{margin-bottom:18px}
+.page-head h2{font-family:'Fraunces',serif;font-size:27px;font-weight:600;margin:0 0 6px}
+.page-head p{color:var(--muted);font-size:14.5px;margin:0;max-width:640px}
+
+/* ASK */
+#ask{padding:40px 36px 32px;max-width:860px}
+#ask h1{font-family:'Fraunces',serif;font-weight:600;font-size:33px;line-height:1.16;margin:0 0 12px;letter-spacing:-.01em}
+#ask h1 em{font-style:normal;color:var(--teal)}
+#ask .lede{color:var(--muted);font-size:16px;max-width:600px;margin:0 0 26px}
+#situation{width:100%;min-height:132px;resize:vertical;font-family:inherit;font-size:16.5px;line-height:1.55;color:var(--txt);
+  background:#0a1411;border:1px solid var(--brd-2);border-radius:14px;padding:18px;outline:none;transition:border-color .15s,box-shadow .15s}
+#situation::placeholder{color:var(--faint)}
+#situation:focus{border-color:rgba(94,234,212,.5);box-shadow:0 0 0 4px rgba(94,234,212,.1)}
+.ask-actions{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+.btn{font-family:inherit;font-weight:600;font-size:15px;cursor:pointer;border-radius:12px;padding:13px 22px;border:1px solid var(--brd-2);
+  background:rgba(255,255,255,.03);color:var(--txt);display:inline-flex;align-items:center;gap:9px;transition:transform .14s,background .14s,box-shadow .2s,filter .15s}
+.btn:hover{background:rgba(255,255,255,.07);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn svg{width:17px;height:17px}
+.btn-primary{border:none;color:#06231f;background:linear-gradient(180deg,#7ff0dc,var(--teal-deep));box-shadow:0 10px 26px rgba(45,212,191,.3), inset 0 1px 0 rgba(255,255,255,.45)}
+.btn-primary:hover{filter:brightness(1.05);box-shadow:0 14px 32px rgba(45,212,191,.42), inset 0 1px 0 rgba(255,255,255,.45)}
+.btn-mic.listening{border-color:var(--coral);color:var(--coral);background:rgba(251,113,133,.1);animation:micpulse 1.2s infinite}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(251,113,133,.4)}50%{box-shadow:0 0 0 7px rgba(251,113,133,0)}}
+.ask-actions .hint{color:var(--faint);font-size:12.5px;margin-left:auto}
+.examples{margin-top:24px}
+.examples .el{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:11px}
+.ex-chips{display:flex;flex-wrap:wrap;gap:10px}
+.ex{cursor:pointer;font-size:13.5px;color:var(--muted);border:1px solid var(--brd);background:rgba(255,255,255,.02);padding:9px 14px;border-radius:11px;transition:.15s}
+.ex:hover{color:var(--txt);border-color:var(--brd-2);background:rgba(255,255,255,.05);transform:translateY(-1px)}
+.privacy{display:flex;gap:10px;align-items:flex-start;margin-top:26px;padding-top:20px;border-top:1px solid var(--brd);color:var(--faint);font-size:12.5px}
+.privacy svg{width:16px;height:16px;flex:0 0 auto;margin-top:1px;color:var(--teal)}
+
+/* THINKING */
+#thinking{display:none;padding:48px 34px;text-align:center}
+#thinking.show{display:block}
+.dots{display:inline-flex;gap:7px;margin-bottom:18px}
+.dots span{width:11px;height:11px;border-radius:50%;background:var(--teal);animation:bob 1s ease-in-out infinite}
+.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+@keyframes bob{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-8px);opacity:1}}
+#thinkMsg{color:var(--muted);font-size:15px}
+
+/* RESULTS */
+#results{display:none}
+#results.show{display:block}
+.care{position:relative;overflow:hidden;padding:24px 26px;border-left:3px solid var(--teal);display:flex;margin-bottom:8px}
+.care .care-text{flex:1;min-width:0;position:relative;z-index:2}
+.clabel{display:flex;align-items:center;gap:9px;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal);margin-bottom:13px}
+.clabel .lic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(94,234,212,.12);border:1px solid rgba(94,234,212,.22)}
+.clabel .lic svg{width:16px;height:16px}
+.care .summary{font-size:17px;color:var(--txt);padding-bottom:16px;border-bottom:1px solid var(--brd);max-width:620px}
+.care .reassure{font-family:'Fraunces',serif;font-size:21px;line-height:1.4;margin-top:16px;max-width:560px}
+.care .reassure .sub{display:block;font-family:'Inter',sans-serif;font-size:14.5px;color:var(--muted);margin-top:7px;font-weight:400}
+.care-art{position:absolute;right:6px;top:0;bottom:0;width:240px;z-index:1;opacity:.9;pointer-events:none;display:flex;align-items:center;justify-content:flex-end}
+.care-art svg{width:230px;height:auto}
+
+.urgent{display:none;align-items:flex-start;gap:15px;padding:18px 20px;margin-top:16px;border-radius:var(--r);
+  background:linear-gradient(180deg,rgba(70,24,34,.42),rgba(44,16,22,.42));border:1px solid rgba(251,113,133,.35)}
+.urgent.show{display:flex}
+.urgent .ic{width:44px;height:44px;border-radius:12px;flex:0 0 auto;display:grid;place-items:center;background:rgba(251,113,133,.16);color:var(--coral)}
+.urgent .ic svg{width:24px;height:24px}
+.urgent h3{margin:0 0 4px;font-size:16px;color:#ffd2da}
+.urgent p{margin:0 0 12px;font-size:13.5px;color:#f0c9cf}
+.urgent .calls{display:flex;gap:10px;flex-wrap:wrap}
+.btn-call{border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;border-radius:11px;padding:11px 18px;color:#2a0a10;
+  background:linear-gradient(180deg,#ffb3bf,var(--coral));display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+.btn-call svg{width:16px;height:16px}
+
+.sec-row{display:flex;align-items:baseline;gap:14px;margin:26px 4px 14px}
+.sec-label{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.sec-label b{color:var(--teal)}
+.sec-row .src{margin-left:auto;font-size:11.5px;color:var(--faint);display:flex;align-items:center;gap:7px}
+.sec-row .src .d{width:7px;height:7px;border-radius:50%;background:var(--teal-2)}
+
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.rcard{position:relative;padding:18px;display:flex;flex-direction:column;gap:13px;transition:.16s;animation:rise .35s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+.rcard:hover{border-color:var(--brd-2);transform:translateY(-2px);box-shadow:0 18px 44px rgba(0,0,0,.4)}
+.rcard .rtop{display:flex;gap:13px;align-items:flex-start;padding-right:38px}
+.rcard .remoji{width:44px;height:44px;border-radius:12px;flex:0 0 auto;display:grid;place-items:center;font-size:22px;background:rgba(94,234,212,.09);border:1px solid rgba(94,234,212,.2)}
+.rcard .rname{font-weight:700;font-size:15.5px;line-height:1.25}
+.rcard .rcat{font-size:12px;color:var(--teal);margin-top:2px}
+.rcard .rdesc{font-size:13px;color:var(--muted);flex:1;line-height:1.5}
+.rcard .rmeta{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--faint);align-items:center}
+.rcard .rmeta .m{display:inline-flex;align-items:center;gap:5px}
+.rcard .open{color:var(--teal-2)}.rcard .closed{color:var(--warm)}
+.rcard .free{color:var(--teal-2);border:1px solid rgba(52,211,153,.32);border-radius:7px;padding:2px 7px;font-size:11px}
+.rcard .ractions{display:flex;gap:10px;margin-top:2px}
+.mini-btn{flex:1;text-align:center;cursor:pointer;font-family:inherit;font-weight:600;font-size:13px;border-radius:11px;padding:11px 8px;
+  border:1px solid var(--brd-2);background:rgba(255,255,255,.03);color:var(--txt);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:.15s}
+.mini-btn:hover{background:rgba(255,255,255,.08);transform:translateY(-1px)}
+.mini-btn svg{width:15px;height:15px}
+.mini-btn.call{color:#06231f;background:linear-gradient(180deg,#7ff0dc,var(--teal-deep));border:none;box-shadow:0 6px 16px rgba(45,212,191,.25)}
+.mini-btn.call:hover{filter:brightness(1.05)}
+.save-btn{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:9px;border:1px solid var(--brd);
+  background:rgba(255,255,255,.03);color:var(--muted);cursor:pointer;display:grid;place-items:center;transition:.15s;z-index:3}
+.save-btn:hover{color:var(--coral);border-color:var(--brd-2)}
+.save-btn.saved{color:var(--coral);background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.3)}
+.save-btn svg{width:16px;height:16px}
+
+.say{padding:20px 22px;margin-top:8px}
+.say .sayhead{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.say .sayhead svg{width:18px;height:18px;color:var(--teal)}
+.say .sayhead h3{margin:0;font-size:15px}
+.say .sayhead .copy{margin-left:auto}
+.say .copy{font-size:13px;padding:9px 15px}
+.say .script{font-size:15.5px;line-height:1.6;color:var(--txt);background:#0a1411;border:1px dashed var(--brd-2);border-radius:13px;padding:16px 18px;font-style:italic}
+
+.steps{padding:20px 22px;margin-top:16px}
+.steps h3{margin:0 0 16px;font-size:15px;display:flex;align-items:center;gap:10px}
+.steps h3 svg{width:18px;height:18px;color:var(--teal)}
+.steps ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px;counter-reset:s}
+.steps li{display:flex;gap:13px;align-items:flex-start;font-size:14.5px;color:var(--txt)}
+.steps li::before{counter-increment:s;content:counter(s);flex:0 0 auto;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  font-size:13px;font-weight:700;color:var(--teal);background:rgba(94,234,212,.1);border:1px solid rgba(94,234,212,.3)}
+
+.map-wrap{margin-top:16px;overflow:hidden}
+#map{height:280px;width:100%;background:#0d1a16}
+.leaflet-container{background:#0d1a16;font-family:inherit}
+.help-pin{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--teal);display:grid;place-items:center;box-shadow:0 3px 10px rgba(0,0,0,.5);border:2px solid #0a1310}
+.help-pin span{transform:rotate(45deg);font-size:14px}
+.you-pin{width:18px;height:18px;border-radius:50%;background:var(--indigo);border:3px solid #0a1310;box-shadow:0 0 0 4px rgba(154,166,248,.3)}
+
+/* DASHBOARD / RESOURCES / HISTORY / MESSAGES / SETTINGS */
+.cat-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px}
+.cat-tile{cursor:pointer;padding:16px;border-radius:14px;border:1px solid var(--brd);background:var(--panel);display:flex;flex-direction:column;gap:7px;transition:.15s}
+.cat-tile:hover{border-color:var(--brd-2);transform:translateY(-2px);background:rgba(94,234,212,.05)}
+.cat-tile .ce{font-size:24px}
+.cat-tile .cn{font-weight:600;font-size:14px}
+.cat-tile .cc{font-size:12px;color:var(--muted)}
+.filter-chips{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:18px}
+.fchip{cursor:pointer;font-size:13px;color:var(--muted);border:1px solid var(--brd);background:var(--panel);padding:8px 14px;border-radius:999px;transition:.15s}
+.fchip:hover{color:var(--txt);border-color:var(--brd-2)}
+.fchip.active{color:#06231f;background:linear-gradient(180deg,#7ff0dc,var(--teal-deep));border-color:transparent;font-weight:600}
+.hist-row{display:flex;gap:14px;align-items:center;padding:14px 16px;border:1px solid var(--brd);border-radius:14px;background:var(--panel);margin-bottom:10px}
+.hist-row .ht{flex:1;min-width:0}
+.hist-row .hq{font-size:14px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-row .hm{font-size:12px;color:var(--faint);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tagpill{font-size:11px;color:var(--teal);border:1px solid rgba(94,234,212,.3);border-radius:6px;padding:1px 7px}
+.msg-card{display:flex;gap:13px;padding:15px 16px;border:1px solid var(--brd);border-radius:14px;background:var(--panel);margin-bottom:11px}
+.msg-card .ma{width:38px;height:38px;border-radius:11px;background:rgba(94,234,212,.12);display:grid;place-items:center;flex:0 0 auto;font-size:18px}
+.msg-card .mtt{font-weight:600;font-size:13.5px}
+.msg-card .mbd{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.5}
+.msg-card .mtime{font-size:11px;color:var(--faint);margin-top:6px}
+.set-row{display:flex;align-items:center;gap:16px;padding:16px 18px;border-bottom:1px solid var(--brd)}
+.set-row:last-child{border-bottom:none}
+.set-row .si{flex:1;min-width:0}
+.set-row .st{font-weight:600;font-size:14px}
+.set-row .sd{font-size:12.5px;color:var(--muted);margin-top:2px}
+.toggle{width:46px;height:26px;border-radius:999px;background:rgba(255,255,255,.1);position:relative;cursor:pointer;transition:.2s;flex:0 0 auto;border:1px solid var(--brd)}
+.toggle.on{background:var(--teal-deep);border-color:transparent}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.toggle.on::after{transform:translateX(20px)}
+.set-input{background:#0a1411;border:1px solid var(--brd-2);border-radius:10px;color:var(--txt);padding:10px 12px;font-family:inherit;font-size:13.5px;width:210px;max-width:50vw}
+.empty{text-align:center;padding:54px 20px;color:var(--muted)}
+.empty .ei{font-size:42px;margin-bottom:12px;opacity:.8}
+.empty h3{font-family:'Fraunces',serif;font-size:20px;color:var(--txt);margin:0 0 6px}
+.empty p{font-size:14px;max-width:380px;margin:0 auto}
+
+.disclaimer{margin-top:30px;color:var(--faint);font-size:12px;line-height:1.6;text-align:center;border-top:1px solid var(--brd);padding-top:20px;max-width:760px;margin-left:auto;margin-right:auto}
+#toasts{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;flex-direction:column;gap:10px}
+.toast{padding:12px 16px;border-radius:12px;border:1px solid var(--brd-2);background:#0f1c18;font-size:13px;box-shadow:var(--shadow);transform:translateY(18px);opacity:0;transition:.3s;max-width:320px}
+.toast.show{transform:none;opacity:1}
+
+@media(max-width:900px){ .care-art{display:none} .res-grid{grid-template-columns:1fr} }
+@media(max-width:780px){
+  .sidebar{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .25s;box-shadow:0 0 60px rgba(0,0,0,.6)}
+  .sidebar.open{transform:none}
+  .btn.menu-btn{display:inline-flex}
+  .main{padding:18px 18px 50px}
+  #ask{padding:26px 20px}#ask h1{font-size:26px}
+}
+</style>
+</head>
+<body>
+<div class="bg-fx"></div>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="side-logo">
+      <span class="beam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><path d="M9 8h6l2 13H7L9 8Z"/><path d="M5 5 3 7"/><path d="m19 5 2 2"/><path d="M9 13h6"/></svg></span>
+      <div><div class="name">Beacon</div><div class="tl">Help, made obvious</div></div>
+    </div>
+    <nav class="side-nav">
+      <a class="nav-item active" data-view="home" onclick="reset()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>Start over</a>
+      <a class="nav-item" data-view="dashboard" onclick="showView('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M9 21V12h6v9"/></svg>Dashboard</a>
+      <a class="nav-item" data-view="mysupport" onclick="showView('mysupport')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 3-3.4 3-5.5A4.5 4.5 0 0 0 12 5 4.5 4.5 0 0 0 2 8.5C2 12 7 16 12 20c2-1.6 4.3-3.5 7-6Z"/></svg>My Support<span class="nav-badge" data-badge="mysupport"></span></a>
+      <a class="nav-item" data-view="history" onclick="showView('history')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>History<span class="nav-badge" data-badge="history"></span></a>
+      <a class="nav-item" data-view="resources" onclick="showView('resources')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5a2 2 0 0 1 2-2h6v18H4a2 2 0 0 1-2-2Z"/><path d="M22 5a2 2 0 0 0-2-2h-6v18h6a2 2 0 0 0 2-2Z"/></svg>Resources</a>
+      <a class="nav-item" data-view="messages" onclick="showView('messages')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>Messages<span class="nav-badge" data-badge="messages"></span></a>
+      <div class="nav-sep"></div>
+      <a class="nav-item" data-view="settings" onclick="showView('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>Settings</a>
+      <a class="nav-item" data-view="signout" onclick="signOut()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+    </nav>
+    <div class="side-spacer"></div>
+    <a class="side-help" href="tel:988">
+      <span class="q"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span>
+      <div><div class="t1">Need immediate help?</div><div class="t2">Call or text 988</div><div class="t3">Crisis &amp; Suicide Lifeline</div></div>
+    </a>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="main-top">
+      <button class="btn menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="spacer"></div>
+      <span class="chip" id="locChip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span id="locText">San Francisco, CA</span></span>
+      <span class="chip ai-off" id="aiChip"><span class="d"></span><span id="aiText">checking AI…</span></span>
+    </div>
+
+    <!-- HOME -->
+    <div class="view" id="view-home">
+      <div class="panel" id="ask">
+        <h1>Not sure where to turn?<br><em>Just tell me what's going on.</em></h1>
+        <p class="lede">Describe your situation in your own words. Beacon's local AI will figure out what kind of help you need, show you real support nearby, and tell you exactly what to say.</p>
+        <textarea id="situation" placeholder="For example: &quot;I lost my job last month and I'm scared I can't make rent. I've also barely been eating.&quot;"></textarea>
+        <div class="ask-actions">
+          <button class="btn btn-primary" id="findBtn" onclick="findHelp()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Find help near me</button>
+          <button class="btn btn-mic" id="micBtn" onclick="toggleMic()" title="Speak instead of typing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg>Speak</button>
+          <span class="hint">No login. Nothing is saved.</span>
+        </div>
+        <div class="examples"><div class="el">Or start from one of these</div><div class="ex-chips" id="exChips"></div></div>
+        <div class="privacy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Your words stay on your device and the local AI on this machine — no account, no cloud, no tracking. Beacon points you to free, public community resources.</span></div>
+      </div>
+
+      <div class="panel" id="thinking"><div class="dots"><span></span><span></span><span></span></div><div id="thinkMsg">Reading what you shared…</div></div>
+
+      <div id="results">
+        <div class="panel care">
+          <div class="care-text">
+            <div class="clabel"><span class="lic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h3l3-8 4 16 3-8h5"/></svg></span>What I heard</div>
+            <div class="summary" id="rSummary"></div>
+            <div class="reassure" id="rReassure"></div>
+          </div>
+          <div class="care-art">
+            <svg viewBox="0 0 240 200" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="var(--teal)" stroke-linecap="round" stroke-linejoin="round">
+              <g opacity="0.55" stroke-width="1.2"><circle cx="40" cy="36" r="1"/><circle cx="74" cy="22" r="1.3"/><circle cx="120" cy="30" r="1"/><circle cx="58" cy="64" r="1"/><circle cx="206" cy="60" r="1.2"/><circle cx="190" cy="26" r="1"/><circle cx="158" cy="16" r="1"/></g>
+              <g opacity="0.35" stroke-width="1.2"><path d="M150 64 96 34"/><path d="M150 64 110 22"/><path d="M168 64 222 40"/><path d="M168 64 210 26"/></g>
+              <circle cx="159" cy="66" r="9" fill="var(--teal)" opacity="0.14" stroke="none"/>
+              <path d="M70 182q70-26 150 0" opacity="0.6" stroke-width="1.4"/>
+              <path d="M146 178 152 84M172 178 166 84" stroke-width="1.6" opacity="0.85"/><path d="M146 178h26" stroke-width="1.6" opacity="0.85"/>
+              <g opacity="0.6" stroke-width="1.2"><path d="M150 120h18"/><path d="M148 150h22"/><path d="M151 100h16"/></g>
+              <path d="M150 84h18" stroke-width="1.6" opacity="0.85"/><path d="M152 84 152 70h14l0 14" stroke-width="1.5" opacity="0.85"/><path d="M150 70h18" stroke-width="1.5" opacity="0.85"/>
+              <path d="M154 70 154 58h10v12" stroke-width="1.4" opacity="0.85"/><path d="M159 58 153 70M159 58 165 70" stroke-width="1" opacity="0.6"/>
+              <path d="M152 58q7-12 14 0" stroke-width="1.5" opacity="0.85"/><path d="M159 46v-5" stroke-width="1.4" opacity="0.8"/><circle cx="159" cy="40" r="1.6" fill="var(--teal)" opacity="0.8" stroke="none"/>
+            </g></svg>
+          </div>
+        </div>
+
+        <div class="urgent" id="urgent">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4"/><path d="M12 16h.01"/><circle cx="12" cy="12" r="10"/></svg></div>
+          <div style="flex:1"><h3 id="urgentTitle">You don't have to handle this alone</h3><p id="urgentMsg">These lines are free, confidential, and open 24/7.</p><div class="calls" id="urgentCalls"></div></div>
+        </div>
+
+        <div class="sec-row"><div class="sec-label">Support <b>near you</b> — tap to call or get directions</div><div class="src" id="srcTag"></div></div>
+        <div class="res-grid" id="resGrid"></div>
+
+        <div class="panel say"><div class="sayhead"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg><h3>What to say when you reach out</h3><button class="btn copy" onclick="copyScript()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy script</button></div><div class="script" id="rScript"></div></div>
+
+        <div class="panel steps"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Right now, you can</h3><ol id="rSteps"></ol></div>
+
+        <div class="sec-row"><div class="sec-label">On the map</div></div>
+        <div class="panel map-wrap"><div id="map"></div></div>
+
+        <div class="disclaimer">Beacon is a demo built for a hackathon. The resources shown are real organization types with sample local listings — always confirm details before relying on them.<br>Beacon is not a substitute for professional or emergency care. If you or someone else is in immediate danger, call <b>911</b>. In the U.S. you can call or text <b>988</b> any time.</div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="view" id="view-dashboard" hidden>
+      <div class="page-head"><h2>Welcome to Beacon</h2><p>You don't need to know a program's name or who to call. Tell Beacon what's going on — or browse the kinds of help available near you.</p></div>
+      <button class="btn btn-primary" onclick="reset()" style="margin-bottom:24px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Tell Beacon what's going on</button>
+      <div class="sec-row"><div class="sec-label">Browse <b>by need</b></div></div>
+      <div class="cat-tiles" id="dash-tiles"></div>
+      <div class="sec-row"><div class="sec-label">Recent searches</div></div>
+      <div id="dash-recent"></div>
+    </div>
+
+    <!-- RESOURCES -->
+    <div class="view" id="view-resources" hidden>
+      <div class="page-head"><h2>Resource directory</h2><p>Every kind of free, local support Beacon knows about — filter by what you need.</p></div>
+      <div class="filter-chips" id="res-filters"></div>
+      <div class="res-grid" id="res-grid-all"></div>
+    </div>
+
+    <!-- MY SUPPORT -->
+    <div class="view" id="view-mysupport" hidden>
+      <div class="page-head"><h2>My saved support</h2><p>Resources you've saved — kept on this device, just for this visit.</p></div>
+      <div class="res-grid" id="mysup-grid"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="view" id="view-history" hidden>
+      <div class="page-head"><h2>Your searches</h2><p>Only on this device, only for this visit — cleared when you close Beacon.</p></div>
+      <div id="hist-list"></div>
+      <button class="btn" id="histClear" onclick="clearHistory()" style="margin-top:14px;display:none">Clear history</button>
+    </div>
+
+    <!-- MESSAGES -->
+    <div class="view" id="view-messages" hidden>
+      <div class="page-head"><h2>Messages</h2><p>Gentle check-ins from Beacon. We'll never text or email you — these stay right here.</p></div>
+      <div id="msg-list"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="view" id="view-settings" hidden>
+      <div class="page-head"><h2>Settings</h2><p>Beacon works with no account. These options stay on your device.</p></div>
+      <div class="panel">
+        <div class="set-row"><div class="si"><div class="st">Use local AI</div><div class="sd">Understand your words with the on-device model. Turn off to use the built-in offline matcher.</div></div><div class="toggle on" id="setAI" onclick="toggleAI()"></div></div>
+        <div class="set-row"><div class="si"><div class="st">Your area</div><div class="sd">Shown on your results. (Demo resource data is for San Francisco.)</div></div><input class="set-input" id="setCity" onchange="applyCity(this.value)" placeholder="City, State"></div>
+        <div class="set-row"><div class="si"><div class="st">Clear session data</div><div class="sd">Forget your searches, saved resources, and messages.</div></div><button class="btn" onclick="clearData()">Clear</button></div>
+      </div>
+      <p class="disclaimer" style="text-align:left;border:none;margin-top:18px;padding:0;margin-left:0">Beacon is a hackathon demo. Nothing you type leaves this device — the AI runs locally via Ollama. Resources are sample local listings; confirm details before relying on them.</p>
+    </div>
+  </main>
+</div>
+<div id="toasts"></div>
+
+<script>
+const $ = (s,el=document)=>el.querySelector(s);
+const CATS = {
+  crisis:{label:'Crisis support', emoji:'🆘'}, mental_health:{label:'Mental health', emoji:'🧠'},
+  food:{label:'Food & meals', emoji:'🍎'}, housing:{label:'Housing & shelter', emoji:'🏠'},
+  health:{label:'Health care', emoji:'⚕️'}, safety:{label:'Safety & abuse', emoji:'🛟'},
+  legal:{label:'Legal help', emoji:'⚖️'}, financial:{label:'Money & bills', emoji:'💵'},
+  substance:{label:'Substance use', emoji:'🌿'}, youth_lgbtq:{label:'Youth & LGBTQ+', emoji:'🌈'}
+};
+const CENTER=[37.7790,-122.4190];
+const RES = [
+  {id:'988', name:'988 Suicide & Crisis Lifeline', cat:'crisis', tags:['crisis','mental_health'], desc:'Free, confidential support for anyone in emotional distress — 24/7, by call or text.', phone:'988', dial:'988', addr:'Nationwide · routed locally', open24:true, free:true, dist:0.0, lat:37.7795,lng:-122.4165, hotline:true},
+  {id:'crisistext', name:'Crisis Text Line', cat:'crisis', tags:['crisis','mental_health','youth_lgbtq'], desc:'Text a trained crisis counselor for free. Text HOME to 741741.', phone:'Text HOME to 741741', dial:'741741', addr:'Text-based · 24/7', open24:true, free:true, dist:0.0, lat:37.7770,lng:-122.4210, hotline:true},
+  {id:'trevor', name:'The Trevor Project', cat:'youth_lgbtq', tags:['youth_lgbtq','crisis','mental_health'], desc:'24/7 crisis support for LGBTQ+ young people, by phone, text, or chat.', phone:'1-866-488-7386', dial:'18664887386', addr:'Nationwide · 24/7', open24:true, free:true, dist:0.0, lat:37.7752,lng:-122.4189, hotline:true},
+  {id:'sfmh', name:'SF Mental Health Access Line', cat:'mental_health', tags:['mental_health'], desc:'Connects SF residents to counseling and behavioral-health services on a sliding scale.', phone:'1-888-246-3333', dial:'18882463333', addr:'1380 Howard St, SF', oh:[8,20], free:true, dist:1.1, lat:37.7745,lng:-122.4119},
+  {id:'foodbank', name:'SF-Marin Food Bank', cat:'food', tags:['food','financial'], desc:'Free groceries and a finder for food pantries across the city — no questions asked.', phone:'1-415-282-1900', dial:'14152821900', addr:'900 Pennsylvania Ave, SF', oh:[9,17], free:true, dist:2.3, lat:37.7559,lng:-122.3892},
+  {id:'glide', name:'GLIDE Free Daily Meals', cat:'food', tags:['food'], desc:'Three free, hot meals a day for anyone — breakfast, lunch, and dinner.', phone:'1-415-674-6000', dial:'14156746000', addr:'330 Ellis St, SF', oh:[8,19], free:true, dist:0.8, lat:37.7849,lng:-122.4129},
+  {id:'stanthony', name:"St. Anthony's Free Medical Clinic", cat:'health', tags:['health','substance'], desc:'Free walk-in medical care for people without insurance — no ID required.', phone:'1-415-241-8320', dial:'14152418320', addr:'150 Golden Gate Ave, SF', oh:[8,16], free:true, dist:0.7, lat:37.7820,lng:-122.4134},
+  {id:'samhsa', name:'SAMHSA National Helpline', cat:'substance', tags:['substance','mental_health'], desc:'Free, confidential 24/7 referral line for substance use and mental health.', phone:'1-800-662-4357', dial:'18006624357', addr:'Nationwide · 24/7', open24:true, free:true, dist:0.0, lat:37.7733,lng:-122.4099, hotline:true},
+  {id:'hamilton', name:'Hamilton Families — Shelter', cat:'housing', tags:['housing'], desc:'Emergency shelter and rapid re-housing for families facing homelessness.', phone:'1-415-292-5228', dial:'14152925228', addr:'260 Golden Gate Ave, SF', oh:[9,18], free:true, dist:0.9, lat:37.7818,lng:-122.4156},
+  {id:'larkin', name:'Larkin Street Youth Services', cat:'housing', tags:['housing','youth_lgbtq','health'], desc:'Shelter, housing, and support for youth (12–24), including LGBTQ+ youth.', phone:'1-415-673-0911', dial:'14156730911', addr:'134 Golden Gate Ave, SF', open24:true, free:true, dist:0.8, lat:37.7822,lng:-122.4128},
+  {id:'woman', name:'W.O.M.A.N. Inc — Domestic Violence', cat:'safety', tags:['safety','housing'], desc:'24/7 support, safety planning, and shelter referrals for survivors of abuse.', phone:'1-877-384-3578', dial:'18773843578', addr:'Confidential · 24/7', open24:true, free:true, dist:0.0, lat:37.7700,lng:-122.4250, hotline:true},
+  {id:'baylegal', name:'Bay Area Legal Aid', cat:'legal', tags:['legal','housing','financial'], desc:'Free legal help with eviction, benefits, safety, and consumer issues.', phone:'1-800-551-5554', dial:'18005515554', addr:'1735 Telegraph Ave (helpline)', oh:[9,17], free:true, dist:3.4, lat:37.8060,lng:-122.4060},
+  {id:'calfresh', name:'CalFresh / SF Benefits (211)', cat:'financial', tags:['financial','food'], desc:'Apply for food benefits, cash aid, and Medi-Cal — and get connected to 211.', phone:'Dial 211', dial:'211', addr:'Citywide · phone & online', oh:[8,20], free:true, dist:0.0, lat:37.7790,lng:-122.4190, hotline:true},
+  {id:'reach', name:'PG&E REACH — Utility Help', cat:'financial', tags:['financial'], desc:'One-time help paying overdue gas and electric bills to avoid shut-off.', phone:'1-800-933-9677', dial:'18009339677', addr:'Citywide · phone & online', oh:[7,19], free:true, dist:0.0, lat:37.7765,lng:-122.4150, hotline:true}
+];
+const EXAMPLES = ["I can't afford groceries this week.","I've been feeling really hopeless lately and I'm alone.","I might get evicted and have nowhere to go.","I'm scared of my partner and need somewhere safe.","I can't pay my electric bill and it's getting shut off.","I'm a teen and I don't feel safe being out at home."];
+
+/* ---- session state (in-memory only — honoring the privacy promise) ---- */
+const saved=new Set();
+const history=[];
+const messages=[];
+const settings={ useAI:true, city:'San Francisco, CA' };
+let currentView='home', resFilter='all', mapObj;
+
+/* ---- helpers ---- */
+const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function isOpen(r){ if(r.open24) return true; if(!r.oh) return true; const h=new Date().getHours(); return h>=r.oh[0]&&h<r.oh[1]; }
+function fmtTime(d){ return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
+function toast(msg){ const w=$('#toasts'); const el=document.createElement('div'); el.className='toast'; el.textContent=msg; w.appendChild(el); requestAnimationFrame(()=>el.classList.add('show')); setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},2800); }
+
+function buildExamples(){ const w=$('#exChips'); w.innerHTML=''; EXAMPLES.forEach(t=>{ const b=document.createElement('button'); b.className='ex'; b.textContent=t; b.onclick=()=>{ $('#situation').value=t; $('#situation').focus(); }; w.appendChild(b); }); }
+
+/* ---- AI status ---- */
+async function checkAI(){
+  if(!settings.useAI){ $('#aiChip').className='chip ai-off'; $('#aiText').textContent='Offline mode (forced)'; return; }
+  try{ const r=await fetch('/api/ai-status'); const j=await r.json();
+    if(j.available){ $('#aiChip').className='chip ai-on'; $('#aiText').textContent=j.label||'AI ready'; }
+    else{ $('#aiChip').className='chip ai-off'; $('#aiText').textContent=j.label||'Offline mode (built-in)'; }
+  }catch(e){ $('#aiChip').className='chip ai-off'; $('#aiText').textContent='Offline mode (built-in)'; }
+}
+
+/* ---- view router ---- */
+function homeActive(){ document.querySelectorAll('.view').forEach(v=>v.hidden=true); $('#view-home').hidden=false; document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view==='home')); currentView='home'; }
+function showView(name){
+  currentView=name;
+  document.querySelectorAll('.view').forEach(v=>v.hidden=true);
+  const el=document.getElementById('view-'+name); if(el) el.hidden=false;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===name));
+  $('#sidebar').classList.remove('open');
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(name==='dashboard') renderDashboard();
+  if(name==='resources') renderResources();
+  if(name==='mysupport') renderMySupport();
+  if(name==='history') renderHistory();
+  if(name==='messages') renderMessages();
+  if(name==='settings') renderSettings();
+}
+function reset(){ $('#results').classList.remove('show'); $('#thinking').classList.remove('show'); $('#ask').style.display='block'; $('#situation').value=''; homeActive(); $('#sidebar').classList.remove('open'); window.scrollTo({top:0,behavior:'smooth'}); }
+
+/* ---- badges + messages ---- */
+function updateBadges(){ document.querySelectorAll('.nav-badge').forEach(b=>{ const k=b.dataset.badge; const n=k==='mysupport'?saved.size:k==='history'?history.length:k==='messages'?messages.length:0; b.textContent=n||''; }); }
+function addMessage(title,body,icon='🔦'){ messages.unshift({title,body,icon,time:new Date()}); updateBadges(); if(currentView==='messages') renderMessages(); }
+
+/* ---- main flow ---- */
+async function findHelp(){
+  const text=$('#situation').value.trim();
+  if(!text){ toast('Tell me a little about what\'s going on first.'); $('#situation').focus(); return; }
+  homeActive(); $('#ask').style.display='none'; $('#results').classList.remove('show'); $('#thinking').classList.add('show'); cycleThinking(); $('#sidebar').classList.remove('open');
+  let data, source;
+  if(settings.useAI){
+    try{ const r=await fetch('/api/triage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})}); const j=await r.json();
+      if(j.ok){ data=j.result; source={kind:j.source||'ollama', model:j.model}; } else { data=localTriage(text); source={kind:'offline'}; }
+    }catch(e){ data=localTriage(text); source={kind:'offline'}; }
+  } else { data=localTriage(text); source={kind:'offline'}; }
+  await new Promise(r=>setTimeout(r,650));
+  stopThinking();
+  history.unshift({id:Date.now(), text, data, source, time:new Date()});
+  addMessage('We found support for you','Based on what you shared, Beacon matched local help and a script you can use. You can revisit it any time in History.','🔦');
+  updateBadges();
+  render(text,data,source);
+}
+let thinkTimer;
+function cycleThinking(){ const msgs=['Reading what you shared…','Understanding what you need…','Finding support near you…','Preparing what to say…']; let i=0; $('#thinkMsg').textContent=msgs[0]; thinkTimer=setInterval(()=>{ i=(i+1)%msgs.length; $('#thinkMsg').textContent=msgs[i]; },900); }
+function stopThinking(){ clearInterval(thinkTimer); $('#thinking').classList.remove('show'); }
+
+/* ---- resource card (shared) ---- */
+function resourceCardHTML(r,i){
+  const open=isOpen(r);
+  const meta = r.open24 ? '<span class="m open">● Open 24/7</span>' : `<span class="m ${open?'open':'closed'}">● ${open?'Open now':'Closed now'}</span>`;
+  const dist = r.dist>0 ? `<span class="m">📍 ${r.dist} mi</span>` : '<span class="m">📞 phone / online</span>';
+  const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name+' '+r.addr)}`;
+  const sv = saved.has(r.id)?'saved':'';
+  return `<div class="panel rcard" style="animation-delay:${(i||0)*50}ms">
+    <button class="save-btn ${sv}" title="Save to My Support" onclick="toggleSave('${r.id}',this)"><svg viewBox="0 0 24 24" fill="${sv?'currentColor':'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 3-3.4 3-5.5A4.5 4.5 0 0 0 12 5 4.5 4.5 0 0 0 2 8.5C2 12 7 16 12 20c2-1.6 4.3-3.5 7-6Z"/></svg></button>
+    <div class="rtop"><div class="remoji">${CATS[r.cat].emoji}</div><div><div class="rname">${r.name}</div><div class="rcat">${CATS[r.cat].label}</div></div></div>
+    <div class="rdesc">${r.desc}</div>
+    <div class="rmeta">${meta}${dist}<span class="m free">Free</span></div>
+    <div class="ractions">
+      <a class="mini-btn call" href="tel:${r.dial}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>${r.phone.length>15?'Call now':r.phone}</a>
+      <a class="mini-btn" href="${maps}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>Directions</a>
+    </div></div>`;
+}
+function toggleSave(id,btn){
+  const on = saved.has(id) ? (saved.delete(id),false) : (saved.add(id),true);
+  if(btn){ btn.classList.toggle('saved',on); btn.querySelector('svg').setAttribute('fill', on?'currentColor':'none'); }
+  updateBadges();
+  if(currentView==='mysupport') renderMySupport();
+  toast(on?'Saved to My Support':'Removed from My Support');
+}
+
+/* ---- results render ---- */
+function render(text,data,source){
+  const srcLabel = source.kind==='offline' ? 'Matched offline (built-in)'
+    : source.kind==='anthropic' ? 'Understood by Claude · cloud AI'
+    : 'Understood by local AI · '+(source.model||'ollama');
+  const srcDot = source.kind==='offline' ? ' style="background:var(--warm)"' : '';
+  $('#srcTag').innerHTML = `<span class="d"${srcDot}></span><span>${srcLabel}</span>`;
+  $('#rSummary').textContent = data.summary || ('"'+text.slice(0,140)+'"');
+  const rea = data.reassurance || "You reached out — that takes courage, and help is closer than it feels.";
+  const parts=(rea.match(/[^.!?]+[.!?]?/g)||[rea]).map(s=>s.trim()).filter(Boolean);
+  const first=parts.shift()||rea; const rest=parts.join(' ');
+  $('#rReassure').innerHTML = escapeHtml(first) + (rest?`<span class="sub">${escapeHtml(rest)}</span>`:'');
+
+  const urgent=$('#urgent');
+  const crisisNeed = data.needs.some(n=>['crisis','mental_health','safety'].includes(n));
+  const showUrgent = data.urgency==='emergency' || (data.urgency==='high' && crisisNeed) || data.needs.includes('crisis');
+  if(showUrgent){
+    urgent.classList.add('show');
+    let list=[];
+    if(data.needs.includes('safety')) list.push(RES.find(r=>r.id==='woman'));
+    if(data.urgency==='emergency'||data.needs.includes('crisis')||data.needs.includes('mental_health')){ list.push(RES.find(r=>r.id==='988'),RES.find(r=>r.id==='crisistext')); if(data.needs.includes('youth_lgbtq')) list.push(RES.find(r=>r.id==='trevor')); }
+    list=[...new Set(list.filter(Boolean))].slice(0,3);
+    if(!list.length) list=[RES.find(r=>r.id==='988')];
+    $('#urgentTitle').textContent = data.urgency==='emergency' ? 'Please reach out right now' : 'You don\'t have to handle this alone';
+    $('#urgentCalls').innerHTML = list.map(r=>`<a class="btn-call" href="tel:${r.dial}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>${r.phone}</a>`).join('');
+  } else { urgent.classList.remove('show'); }
+
+  const needs = data.needs.length?data.needs:['mental_health'];
+  let matched = RES.filter(r=> needs.includes(r.cat) || r.tags.some(t=>needs.includes(t)));
+  if((needs.includes('mental_health')||needs.includes('crisis')) && !matched.some(r=>r.id==='988')) matched.unshift(RES.find(r=>r.id==='988'));
+  matched=[...new Set(matched)].sort((a,b)=>{ const ae=needs.includes(a.cat)?0:1, be=needs.includes(b.cat)?0:1; if(ae!==be) return ae-be; return (a.dist||0)-(b.dist||0); }).slice(0,6);
+  $('#resGrid').innerHTML = matched.map((r,i)=>resourceCardHTML(r,i)).join('');
+
+  $('#rScript').textContent = '“'+(data.whatToSay || defaultScript(needs))+'”';
+  const steps = data.steps && data.steps.length ? data.steps : defaultSteps(needs);
+  $('#rSteps').innerHTML = steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('');
+
+  $('#results').classList.add('show');
+  window.scrollTo({top:0,behavior:'smooth'});
+  drawMap(matched);
+}
+
+function drawMap(matched){
+  try{
+    if(!mapObj){
+      mapObj=L.map('map',{zoomControl:false,attributionControl:false}).setView(CENTER,14);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd'}).addTo(mapObj);
+      mapObj._youLayer=L.layerGroup().addTo(mapObj); mapObj._resLayer=L.layerGroup().addTo(mapObj);
+    }
+    mapObj._resLayer.clearLayers(); mapObj._youLayer.clearLayers();
+    L.marker(CENTER,{icon:L.divIcon({className:'',html:'<div class="you-pin"></div>',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(mapObj._youLayer);
+    const pts=[CENTER];
+    matched.filter(r=>r.lat&&r.lng).forEach(r=>{ L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:`<div class="help-pin"><span>${CATS[r.cat].emoji}</span></div>`,iconSize:[30,30],iconAnchor:[15,28]})}).addTo(mapObj._resLayer).bindPopup('<b>'+r.name+'</b><br>'+r.addr); pts.push([r.lat,r.lng]); });
+    setTimeout(()=>{ mapObj.invalidateSize(); if(pts.length>1) mapObj.fitBounds(pts,{padding:[40,40]}); },200);
+  }catch(e){ $('#map').innerHTML='<div style="display:grid;place-items:center;height:100%;color:var(--muted)">Map unavailable offline</div>'; }
+}
+
+/* ---- view renderers ---- */
+function renderDashboard(){
+  $('#dash-tiles').innerHTML = Object.entries(CATS).map(([k,v])=>`<div class="cat-tile" onclick="browseCat('${k}')"><div class="ce">${v.emoji}</div><div class="cn">${v.label}</div><div class="cc">${RES.filter(r=>r.cat===k||r.tags.includes(k)).length} resources</div></div>`).join('');
+  $('#dash-recent').innerHTML = history.length ? history.slice(0,3).map(histRowHTML).join('')
+    : `<div class="empty" style="padding:28px"><p>No searches yet — tap the button above to tell Beacon what's going on.</p></div>`;
+}
+function browseCat(k){ resFilter=k; showView('resources'); }
+function renderResources(){
+  $('#res-filters').innerHTML = ['all',...Object.keys(CATS)].map(k=>`<div class="fchip ${resFilter===k?'active':''}" onclick="setResourceFilter('${k}')">${k==='all'?'All resources':CATS[k].emoji+' '+CATS[k].label}</div>`).join('');
+  const list = RES.filter(r=> resFilter==='all' || r.cat===resFilter || r.tags.includes(resFilter));
+  $('#res-grid-all').innerHTML = list.map((r,i)=>resourceCardHTML(r,i)).join('');
+}
+function setResourceFilter(k){ resFilter=k; renderResources(); }
+function renderMySupport(){
+  const list=[...saved].map(id=>RES.find(r=>r.id===id)).filter(Boolean);
+  $('#mysup-grid').innerHTML = list.length ? list.map((r,i)=>resourceCardHTML(r,i)).join('')
+    : `<div class="empty"><div class="ei">💚</div><h3>No saved support yet</h3><p>Tap the heart on any resource and it'll be waiting for you right here.</p></div>`;
+}
+function histRowHTML(h){ return `<div class="hist-row"><div class="ht"><div class="hq">${escapeHtml(h.text)}</div><div class="hm"><span>${fmtTime(h.time)}</span>${h.data.needs.map(n=>`<span class="tagpill">${CATS[n]?CATS[n].label:n}</span>`).join('')}</div></div><button class="mini-btn" style="flex:0 0 auto;padding:9px 16px" onclick="openHistory(${h.id})">View</button></div>`; }
+function renderHistory(){
+  const el=$('#hist-list');
+  if(!history.length){ el.innerHTML=`<div class="empty"><div class="ei">🕊️</div><h3>No searches yet</h3><p>Your past searches appear here for this visit only, then they're gone.</p></div>`; $('#histClear').style.display='none'; return; }
+  el.innerHTML = history.map(histRowHTML).join('');
+  $('#histClear').style.display='inline-flex';
+}
+function openHistory(id){ const h=history.find(x=>x.id===id); if(!h) return; homeActive(); $('#ask').style.display='none'; $('#thinking').classList.remove('show'); render(h.text,h.data,h.source); }
+function clearHistory(){ history.length=0; updateBadges(); renderHistory(); toast('History cleared'); }
+function renderMessages(){
+  const el=$('#msg-list');
+  el.innerHTML = messages.length ? messages.map(m=>`<div class="msg-card"><div class="ma">${m.icon}</div><div><div class="mtt">${escapeHtml(m.title)}</div><div class="mbd">${escapeHtml(m.body)}</div><div class="mtime">${fmtTime(m.time)}</div></div></div>`).join('')
+    : `<div class="empty"><div class="ei">💬</div><h3>No messages yet</h3><p>Beacon's gentle check-ins will appear here.</p></div>`;
+}
+function renderSettings(){ $('#setAI').classList.toggle('on',settings.useAI); $('#setCity').value=settings.city; }
+function toggleAI(){ settings.useAI=!settings.useAI; $('#setAI').classList.toggle('on',settings.useAI); checkAI(); toast('Local AI '+(settings.useAI?'enabled':'disabled')); }
+function applyCity(v){ settings.city=(v||'').trim()||'San Francisco, CA'; $('#locText').textContent=settings.city; toast('Area updated'); }
+function clearData(){ saved.clear(); history.length=0; messages.length=0; seedWelcome(); updateBadges(); if(currentView==='mysupport')renderMySupport(); if(currentView==='history')renderHistory(); if(currentView==='messages')renderMessages(); if(currentView==='dashboard')renderDashboard(); toast('Session data cleared'); }
+function signOut(){ saved.clear(); history.length=0; messages.length=0; seedWelcome(); updateBadges(); reset(); toast("You're signed out — Beacon never stored an account for you."); }
+
+/* ---- fallbacks ---- */
+const KEYS = [
+  {cat:'crisis',  u:'emergency', re:/suicid|kill myself|end (it|my life)|don'?t want to (live|be here)|hurt myself|harm myself|better off dead|overdos/i},
+  {cat:'safety',  u:'high', re:/abus|hit me|scared of (my|him|her|them)|domestic|unsafe at home|violen|threaten|stalk/i},
+  {cat:'mental_health', u:'high', re:/hopeless|depress|anxiet|panic|alone|can'?t cope|breakdown|worthless|so sad|overwhelm|mental/i},
+  {cat:'housing', u:'high', re:/evict|homeless|nowhere to (go|live|stay|sleep)|kicked out|lose my (home|apartment)|shelter|on the street/i},
+  {cat:'food',    u:'moderate', re:/hungry|food|groceries|can'?t (afford|buy) (food|groceries)|nothing to eat|starv|meal/i},
+  {cat:'substance', u:'high', re:/addict|drinking|alcohol|drugs|relaps|using again|withdraw|sober/i},
+  {cat:'health',  u:'moderate', re:/sick|doctor|clinic|meds|medicine|prescription|pain|insurance|injur|health/i},
+  {cat:'financial', u:'moderate', re:/rent|bills?|money|broke|can'?t pay|unemploy|lost my job|laid off|utility|electric|cash|afford/i},
+  {cat:'legal',   u:'moderate', re:/lawyer|legal|rights|court|immigration|landlord|deport|sue/i},
+  {cat:'youth_lgbtq', u:'high', re:/\bteen\b|\bkid\b|i'?m \d{1,2}|lgbtq|gay|lesbian|trans|queer|bisexual|bullied|coming out/i}
+];
+function localTriage(text){
+  const needs=[]; let urgency='low'; const rank={low:0,moderate:1,high:2,emergency:3};
+  KEYS.forEach(k=>{ if(k.re.test(text)){ if(!needs.includes(k.cat)) needs.push(k.cat); if(rank[k.u]>rank[urgency]) urgency=k.u; } });
+  if(!needs.length){ needs.push('mental_health'); urgency='moderate'; }
+  return { urgency, needs, summary:'It sounds like you might need '+needs.map(n=>CATS[n].label.toLowerCase()).join(' and ')+'.',
+    reassurance: urgency==='emergency' ? "I'm really glad you said something. You matter, and there are people ready to help you right now." : "Reaching out is a strong first step — there's real, free help nearby for exactly this.",
+    whatToSay: defaultScript(needs), steps: defaultSteps(needs) };
+}
+function defaultScript(needs){ const n=needs[0]; const map={
+  crisis:"Hi, I'm going through a really hard time and I'm not feeling safe. I just need someone to talk to right now.",
+  mental_health:"Hi, I've been struggling emotionally and I'd like to talk to someone or find low-cost counseling near me.",
+  food:"Hi, I'm having trouble affording food this week. Can you help me find free groceries or meals nearby today?",
+  housing:"Hi, I'm at risk of losing my housing and I need to know what shelter or rent help is available right now.",
+  health:"Hi, I need to see a doctor but I don't have insurance. Can you help me find a free or low-cost clinic?",
+  safety:"Hi, I don't feel safe where I am and I need help making a safety plan and finding somewhere safe to go.",
+  legal:"Hi, I have a legal problem I can't handle alone and I'm looking for free legal help.",
+  financial:"Hi, I'm behind on my bills and I'm looking for any assistance programs I might qualify for.",
+  substance:"Hi, I'm trying to get help with substance use and I'd like to know what free options are near me.",
+  youth_lgbtq:"Hi, I'm young and going through something hard at home, and I need someone safe to talk to." };
+  return map[n]||map.mental_health; }
+function defaultSteps(needs){ const n=needs[0]; const base=["Take one slow breath — you've already done the hard part by reaching out."]; const map={
+  crisis:["If you're in immediate danger, call 911.","Call or text 988 now — it's free, confidential, and open 24/7.","Stay with someone you trust, or somewhere you feel safe, until you've talked to someone."],
+  mental_health:["Call or text 988 if things feel overwhelming.","Reach out to one support line below to ask about low-cost counseling.","Tell one person you trust how you're feeling."],
+  food:["Tap a food resource below and call to confirm today's hours.","Bring any ID you have, but most pantries serve everyone regardless.","Ask them about ongoing benefits like CalFresh while you're there."],
+  housing:["Call a shelter or housing line below as early in the day as you can.","Ask specifically about emergency beds for tonight.","Gather any ID and a phone number where they can reach you."],
+  health:["Call a free clinic below to ask about walk-in hours.","Write down your symptoms and any medications you take.","Ask about sliding-scale or free options before your visit."],
+  safety:["If you're in danger right now, call 911.","Call the confidential hotline below — they can help you plan safely.","Keep your phone charged and tell one trusted person where you are."],
+  legal:["Call the legal aid line below and describe your situation briefly.","Gather any letters, notices, or documents related to the issue.","Note any deadlines you've been given."],
+  financial:["Dial 211 or call an assistance line below to see what you qualify for.","Have your most urgent bill or notice in front of you.","Ask about one-time emergency funds and payment plans."],
+  substance:["Call SAMHSA's free 24/7 line below — no judgment, just options.","Ask about same-day or low-cost programs near you.","Reach out to one person who can support you through this."],
+  youth_lgbtq:["If you're in danger, call 911.","Contact a youth or LGBTQ+ line below — they're used to helping people your age.","Find a trusted adult or safe place while you sort out next steps."] };
+  return base.concat(map[n]||map.mental_health); }
+
+function copyScript(){ const t=$('#rScript').textContent.replace(/[“”]/g,''); navigator.clipboard?.writeText(t).then(()=>toast('Script copied'),()=>toast('Copy not available')); }
+
+let recog, listening=false;
+function toggleMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ toast('Voice input isn\'t supported in this browser.'); return; }
+  if(listening){ recog && recog.stop(); return; }
+  recog=new SR(); recog.lang='en-US'; recog.interimResults=true; recog.continuous=false;
+  listening=true; $('#micBtn').classList.add('listening');
+  let base=$('#situation').value?($('#situation').value+' '):'';
+  recog.onresult=e=>{ let t=''; for(const r of e.results) t+=r[0].transcript; $('#situation').value=base+t; };
+  recog.onerror=()=>toast('Didn\'t catch that — try again.');
+  recog.onend=()=>{ listening=false; $('#micBtn').classList.remove('listening'); };
+  recog.start();
+}
+
+function seedWelcome(){ messages.unshift({title:'Welcome to Beacon',body:'Whenever you\'re ready, tell me what\'s going on and I\'ll point you to real, free help nearby. You can reach 988 any time, day or night.',icon:'👋',time:new Date()}); }
+
+/* ---- init ---- */
+buildExamples(); checkAI(); seedWelcome(); updateBadges();
+$('#situation').addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter') findHelp(); });
+</script>
+</body>
+</html>
