@@ -58,17 +58,6 @@ npm run build      # outputs to dist/
 npm run preview    # serve the built site
 ```
 
-## ☁️ Deploy to Vercel
-1. Push this folder to a GitHub repo.
-2. In [Vercel](https://vercel.com), **Add New → Project → Import** the repo.
-   Vercel auto-detects **Vite** and the `/api` serverless functions — just click **Deploy**.
-3. *(Optional, for real AI on the live site)* add an environment variable:
-   - `ANTHROPIC_API_KEY` = your key from <https://console.anthropic.com>
-
-   Without it, the deployed site uses the offline matcher (still fully functional).
-
-> Ollama only works on **your own machine**, so the public Vercel site uses Claude
-> (if a key is set) or the offline matcher.
 
 ## 📁 Structure
 ```
